@@ -3,14 +3,12 @@
     <div class="container">
       <div class="columns">
         <div class="column is-6 is-offset-3">
-          <input
-            type="text"
-            class="input"
-            placeholder="Pick a date range"
+          <airbnb-calendar
             [(ngModel)]="date"
-            airbnb-calendar
+            [isOpened]="true"
             [options]="options"
-          />
+            #calendar
+          ></airbnb-calendar>
         </div>
       </div>
     </div>

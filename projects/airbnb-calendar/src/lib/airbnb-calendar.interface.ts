@@ -34,6 +34,7 @@ export interface CalendarOptions {
   firstCalendarDay?: number;
   locale?: Locale;
   closeOnSelected?: boolean;
+  separator?: string;
 }
 
 export function mergeCalendarOptions(opts?: CalendarOptions): CalendarOptions {
@@ -48,5 +49,6 @@ const defaultOptions: CalendarOptions = {
   formatDays: 'eeeeee',
   firstCalendarDay: 0,
   locale: enUS,
-  closeOnSelected: false
+  closeOnSelected: false,
+  separator: "-"
 };

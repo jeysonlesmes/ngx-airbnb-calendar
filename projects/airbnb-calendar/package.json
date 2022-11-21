@@ -1,9 +1,9 @@
 {
-  "name": "ngx-airbnb-calendar",
+  "name": "@jeysonlesmes/ngx-airbnb-calendar",
   "version": "0.5.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jkuri/ngx-airbnb-calendar"
+    "url": "jeysonlesmes/ngx-airbnb-calendar"
   },
   "author": {
     "name": "Jan Kuri",
@@ -11,6 +11,7 @@
     "url": "https://jankuri.com"
   },
   "license": "MIT",
+  "private": false,
   "keywords": [
     "Angular",
     "Calendar",

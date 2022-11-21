@@ -6,7 +6,8 @@ import {
   ElementRef,
   EventEmitter,
   Output,
-  ChangeDetectorRef
+  ChangeDetectorRef,
+  ViewChild
 } from '@angular/core';
 import { NG_VALUE_ACCESSOR, ControlValueAccessor } from '@angular/forms';
 import { Calendar, CalendarOptions, mergeCalendarOptions, Day } from './airbnb-calendar.interface';
@@ -30,7 +31,9 @@ import {
   setHours,
   isSameDay,
   setMinutes,
-  setSeconds
+  setSeconds,
+  parseISO,
+  isValid
 } from 'date-fns';
 
 @Component({
@@ -41,14 +44,17 @@ import {
 })
 export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, OnChanges {
   @Input() options!: CalendarOptions;
+  @Input() isOpened: boolean = false;
   @Output() modelValue: EventEmitter<string> = new EventEmitter<string>();
   @Output() fromValue: EventEmitter<string | null> = new EventEmitter<string | null>();
   @Output() toValue: EventEmitter<string | null> = new EventEmitter<string | null>();
 
+  @ViewChild("prev") prev: HTMLElement
+  @ViewChild("next") next: HTMLElement
+
   private date: Date = new Date();
   private innerValue: string | null = null;
 
-  isOpened: boolean = false;
   calendar!: Calendar;
   calendarNext!: Calendar;
   fromToDate: { from: Date | null; to: Date | null } = { from: null, to: null };
@@ -59,19 +65,56 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
 
   set value(val: string | null) {
     this.innerValue = val;
+
+    this.onChangeCallback(this.innerValue)
+    this.onTouchedCallback()
   }
 
   get controlsStatus(): { from: boolean; to: boolean } {
+    let from = true
+    let to = true
+
+    if (this.options.minYear && this.calendar.year <= this.options.minYear) {
+      from = !(this.calendar.year < this.options.minYear || (this.calendar.year == this.options.minYear && this.calendar.month === 0))
+    }
+
+    if (this.options.maxYear && this.calendar.year >= this.options.maxYear) {
+      to = !(this.calendar.year > this.options.maxYear || (this.calendar.year == this.options.maxYear && this.calendar.month === 11))
+    }
+
     return {
-      from: Boolean(this.options.minYear && this.options.minYear < this.calendar.year && this.calendar.month !== 0),
-      to: Boolean(
-        this.options.maxYear && this.options.maxYear > this.calendarNext.year && this.calendarNext.month !== 11
-      )
+      from,
+      to
     };
   }
 
   writeValue(val: string | null): void {
+    if (val) {
+      this.fromToDate.from = null
+      this.fromToDate.to = null
+
+      const [startDate, endDate] = val.split(this.options.separator!)
+
+      this.setDate(startDate)
+      this.setDate(endDate)
+    }
+
     this.innerValue = val;
+  }
+
+  setDate(val: string): void {
+    const date = parseISO(val)
+
+    if (isValid(date)) {
+      const leftDay = this.calendar.days.findIndex(day => isSameDay(day.date, date))
+      const rightDay = this.calendarNext.days.findIndex(day => isSameDay(day.date, date))
+
+      if (leftDay !== -1) {
+        this.selectDay(leftDay, "primary")
+      } else if (rightDay !== -1) {
+        this.selectDay(rightDay, "primary")
+      }
+    }
   }
 
   registerOnChange(fn: any): void {
@@ -82,10 +125,10 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
     this.onTouchedCallback = fn;
   }
 
-  private onTouchedCallback: () => void = () => {};
-  private onChangeCallback: (_: any) => void = () => {};
+  private onTouchedCallback: () => void = () => { };
+  private onChangeCallback: (_: any) => void = () => { };
 
-  constructor(private elementRef: ElementRef, public cd: ChangeDetectorRef) {}
+  constructor(private elementRef: ElementRef, public cd: ChangeDetectorRef) { }
 
   ngOnInit(): void {
     this.options = mergeCalendarOptions(this.options);
@@ -108,9 +151,16 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
         this.fromValue.next(from);
       } else if (this.fromToDate.from && !this.fromToDate.to) {
         this.fromToDate.to = cal.days[index].date;
-        const from = format(this.fromToDate.from as Date, this.options.format as string);
-        const to = format(this.fromToDate.to as Date, this.options.format as string);
-        this.value = `${from}-${to}`;
+
+        let from = format(this.fromToDate.from as Date, this.options.format as string);
+        let to = format(this.fromToDate.to as Date, this.options.format as string);
+
+        if (isAfter(this.fromToDate.from, this.fromToDate.to)) {
+          from = format(this.fromToDate.to as Date, this.options.format as string);
+          to = format(this.fromToDate.from as Date, this.options.format as string);
+        }
+
+        this.value = `${from}${this.options.separator!}${to}`;
         this.modelValue.next(this.value);
         this.toValue.next(this.value);
 
@@ -130,8 +180,7 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
       return {
         ...d,
         ...{
-          isIncluded:
-            isAfter(d.date, this.fromToDate.from || new Date()) && isBefore(d.date, this.fromToDate.to || new Date()),
+          isIncluded: this.isIncluded(d.date),
           isActive:
             isSameDay(this.fromToDate.from || new Date(), d.date) || isSameDay(this.fromToDate.to as Date, d.date)
         }
@@ -142,8 +191,7 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
       return {
         ...d,
         ...{
-          isIncluded:
-            isAfter(d.date, this.fromToDate.from || new Date()) && isBefore(d.date, this.fromToDate.to || new Date()),
+          isIncluded: this.isIncluded(d.date),
           isActive:
             isSameDay(this.fromToDate.from || new Date(), d.date) || isSameDay(this.fromToDate.to as Date, d.date)
         }
@@ -178,6 +226,7 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
     const days: Day[] = eachDayOfInterval({ start, end })
       .map(d => {
         d = setSeconds(setMinutes(setHours(d, 0), 0), 0);
+
         return {
           date: d,
           day: getDate(d),
@@ -185,10 +234,10 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
           year: getYear(d),
           isSameMonth: isSameMonth(d, start),
           isToday: isToday(d),
-          isSelectable: isBefore(now, d) || isSameDay(now, d),
+          isSelectable: true,
           isSelected: false,
           isVisible: true,
-          isIncluded: isAfter(d, this.fromToDate.from || new Date()) && isBefore(d, this.fromToDate.to || new Date()),
+          isIncluded: this.isIncluded(d),
           isActive: false
         };
       })
@@ -210,8 +259,7 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
                 isSelectable: false,
                 isSelected: false,
                 isVisible: true,
-                isIncluded:
-                  isAfter(curr, this.fromToDate.from || new Date()) && isBefore(curr, this.fromToDate.to || new Date()),
+                isIncluded: this.isIncluded(curr),
                 isActive: false
               };
             })
@@ -236,5 +284,17 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
       days,
       dayNames
     };
+  }
+
+  isIncluded(date: Date): boolean {
+    if (this.fromToDate.from && this.fromToDate.to) {
+      if (isAfter(this.fromToDate.to, this.fromToDate.from)) {
+        return isAfter(date, this.fromToDate.from) && isBefore(date, this.fromToDate.to)
+      }
+
+      return isBefore(date, this.fromToDate.from) && isAfter(date, this.fromToDate.to)
+    }
+
+    return false
   }
 }

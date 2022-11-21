@@ -12,7 +12,7 @@ export class AppComponent {
   options: CalendarOptions = {
     firstCalendarDay: 1,
     format: 'LL/dd/yyyy',
-    closeOnSelected: true,
+    closeOnSelected: false,
     // minDate: addDays(new Date(), 5),
     // maxDate: addDays(new Date(), 10),
     minYear: 2019,
