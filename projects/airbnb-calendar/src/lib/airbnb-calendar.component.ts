@@ -89,14 +89,17 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
   }
 
   writeValue(val: string | null): void {
-    if (val) {
-      this.fromToDate.from = null
-      this.fromToDate.to = null
+    this.fromToDate.from = null
+    this.fromToDate.to = null
 
+    if (val) {
       const [startDate, endDate] = val.split(this.options.separator!)
 
       this.setDate(startDate)
       this.setDate(endDate)
+    } else if (val === "") {
+      this.selectDay()
+      this.value = ""
     }
 
     this.innerValue = val;
@@ -181,8 +184,7 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
         ...d,
         ...{
           isIncluded: this.isIncluded(d.date),
-          isActive:
-            isSameDay(this.fromToDate.from || new Date(), d.date) || isSameDay(this.fromToDate.to as Date, d.date)
+          isActive: this.isActive(d)
         }
       };
     });
@@ -192,8 +194,7 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
         ...d,
         ...{
           isIncluded: this.isIncluded(d.date),
-          isActive:
-            isSameDay(this.fromToDate.from || new Date(), d.date) || isSameDay(this.fromToDate.to as Date, d.date)
+          isActive: this.isActive(d)
         }
       };
     });
@@ -295,6 +296,22 @@ export class AirbnbCalendarComponent implements ControlValueAccessor, OnInit, On
       return isBefore(date, this.fromToDate.from) && isAfter(date, this.fromToDate.to)
     }
 
+    return false
+  }
+
+  isActive(day: Day): boolean {
+    if (this.fromToDate.from || this.fromToDate.to) {
+      if (this.fromToDate.from && this.fromToDate.to) {
+        return isSameDay(this.fromToDate.from, day.date) || isSameDay(this.fromToDate.to, day.date)
+      }
+
+      if (this.fromToDate.from) {
+        return isSameDay(this.fromToDate.from, day.date)
+      }
+
+      return isSameDay(this.fromToDate.to!, day.date)
+    }
+    
     return false
   }
 }

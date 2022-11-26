@@ -1,4 +1,6 @@
 <div class="airbnb-calendar-container" *ngIf="isOpened">
+  <ng-content select="[actions]"></ng-content>
+
   <div class="airbnb-calendar">
     <section class="calendar">
       <div class="controls">
